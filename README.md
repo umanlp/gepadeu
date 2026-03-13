@@ -1,6 +1,11 @@
-# GePaDeU – A Multi-layer Corpus of German Parliamentary Debates with Rich Semantic and Pragmatic Annotations 
+## GePaDeU – A Multi-layer Corpus of German Parliamentary Debates with Rich Semantic and Pragmatic Annotations 
 
-This repository contains the annotation guidelines, data sheet and manual annotations for GePaDeU (German Parliamentary Debates Unified), a multi-layer corpus with unified layers of rich semantic and pragmatic annotations, as supplementary material for our LREC 2026 submission.
+This repository contains the annotation guidelines, data sheet and manual annotations for GePaDeU (German Parliamentary Debates--Unified), a multi-layer corpus with unified layers of rich semantic and pragmatic annotations, as supplementary materials for our LREC 2026 paper:
+
+```
+
+
+```
 
 
 ------
@@ -17,6 +22,10 @@ gepadeu
 │   └── MoralFrames_Annotation_Guidelines.pdf
 ├── data
 │   └── speeches (to be added soon)
+├── docs
+│   ├── GePaDeU_Datasheet.pdf
+│   ├── GePaDeU_Paper.pdf
+│   ├── Overview_GePaDeU_Annotation_Layers.pdf
 ├── notebooks
 │   ├── 01_example_basic_statistics.ipynb
 │   ├── 02_example_keyword_search.ipynb
