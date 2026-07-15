@@ -1,4 +1,5 @@
 import gepadeu
+from pprint import pprint
 import json
 import sys    
 import re
@@ -34,12 +35,9 @@ def session_by_docid(meta_dic, doc_id):
 def source_by_docid(meta_dic, doc_id):
     return meta_dic[doc_id]['source'] 
 
-def function_by_docid(meta_dic, doc_id):
 
-    return meta_dic[doc_id]['source'] 
-
-
-# TODO: check party names for older legislative terms (LINKE, PDS?)
+# List all parties that had a function in all legislative terms of the BRD
+# and specify the function (either government or opposition).
 def is_gov_opp(party, term):
     if party == 'fraktionslos':
         return 'fraktionslos'
@@ -154,7 +152,8 @@ def is_gov_opp(party, term):
             'SPD': 'gov'
         },
         5: { 
-            # FIXME: Koalitionsbruch?
+            # FIXME: What happened in this term?
+            # Koalitionsbruch?
         },
         4: {
             'CDU_CSU': 'gov',
@@ -193,22 +192,34 @@ def is_gov_opp(party, term):
     return legislative[term][party]
 
 
-
+# TODO: returns party names for gold standard only 
+# (needs to be adapted for party names in the silver standard: 
+# parties that took part in the Bundestag from 1949 to today)
 def get_parties():
     return ['AfD', 'CDU_CSU', 'FDP', 'GRUENE', 'LINKE', 'SPD', 'fraktionslos']
 
 def get_speechact_labels():
     return ['Accusation', 'Bad-outcome', 'Demand', 'Evaluation', 'Expressive', 'I-S-Humour', 'Macro', 'Question-All', 'Promise', 'Rejection', 'Report', 'Request', 'Self-representation', 'Support']
 
+def get_moral_frame_labels():
+    return ['MoralValue', 'ImmoralValue', 'MoralActOrGoal', 'ImmoralActOrGoal', 'PoliticalActOrGoal']
+
 def get_mf_labels():
-    return ['Authority', 'Care', 'Equality', 'Liberty', 'Loyalty', 'Proportionality', 'Purity', 'General-Moral', 'PoliticalActOrGoal']
+    return ['Authority', 'Care', 'Equality', 'Liberty', 'Loyalty', 'Proportionality', 'Purity', 'General-Moral']
+
+def get_narrative_role_labels():
+    return ['Beneficiary', 'Hero', 'Victim', 'Villain']
 
 def get_spkatt_role_labels():
     return ['Addr', 'Source', 'Message', 'Topic', 'Medium', 'Evidence']
 
+def get_spkatt_trigger_labels():
+    return ['V', 'PTC']
+
 def get_mope_labels():
     return ['eoFinanz', 'eoMedia', 'eoMil', 'eoMov', 'eoNgo', 'eoPol', 'eoRel', 'eoSci', 'eoWirt', 'epFinanz', 'epKult', 'epMedia', 'epMil', 'epMov', 'epNgo', 'epOwn', 'epPol', 'epRel', 'epSci', 'epWirt', 'GPE', 'pAge', 'pEth', 'pFunk', 'pGen', 'pNat', 'pSoz']
 
+# Convert mappings to more readable label names.
 def get_mope_mapping():
     return {
         'EOFINANZ': 'eoFinanz', 
@@ -241,13 +252,15 @@ def get_mope_mapping():
     }
 
 
-    
 def get_sitent_labels():
-    return ['STATE', 'EVENT', 'REPORT', 'GENERIC', 'GENERALIZING', 'FACT', 'PROPOSITION', 'EVENT-PERFECT-STATE', 'IMPERATIVE', 'QUESTION']
+    return ['STATE', 'EVENT', 'REPORT', 'GENERIC', 'GENERALIZING', 'EVENT-PERFECT-STATE', 'IMPERATIVE', 'QUESTION']
     
 
-# check if two lists (indicated by their start and end indices)
-# do overlap
+def get_abs_ent_labels():
+    return ['FACT', 'PROPOSITION']
+    
+
+# Check if two lists (indicated by their start and end indices) overlap
 def span_overlap(s1, e1, s2, e2): 
     if not set([x for x in range(s1, e1+1)]).isdisjoint([x for x in range(s2, e2+1)]):
         return True
@@ -311,65 +324,6 @@ def get_colors():
         }
 
 
-"""
-Takes a list of Gepadeu objects and sorts them by party.
-Returns a dictionary with parties as keys.
-"""
-def sort_speeches_by_party(speeches):
-    parties = get_parties()
-    party_dict = {p:[] for p in parties}
-
-    for speech in speeches:
-        party_dict[speech.party].append(speech)
-
-    return party_dict
-
-
-"""
-Takes an annotation dictionary and sorts the annotations by party affiliation.
-Returns a dictionary with parties as keys.
-"""
-def sort_annots_by_party(annot_dict, meta_dict):
-    parties = ['AfD', 'CDU_CSU', 'FDP', 'GRUENE', 'LINKE', 'SPD', 'fraktionslos']
-    party_dict = {p:{} for p in parties}
-
-    for doc_id in annot_dict:
-        for label in annot_dict[doc_id]:
-            if label not in party_dict[meta_dict[doc_id]['party']]:
-                party_dict[meta_dict[doc_id]['party']][label] = []
-            if annot_dict[doc_id][label] == []:
-                continue
-            for dic in annot_dict[doc_id][label]:
-                party_dict[meta_dict[doc_id]['party']][label].append(dic) 
-    return party_dict
-
-
-"""
-Takes a list of Gepadeu objects and sorts them by legislative term.
-Returns a dictionary with term as keys.
-"""
-def sort_speeches_by_term(speeches):
-    terms = list(set([speech.term for speech in speeches]))
-    term_dict = {t:[] for t in terms}
-
-    for speech in speeches:
-        term_dict[speech.term].append(speech)
-
-    return term_dict
-
-
-"""
-Takes a list of Gepadeu objects and sorts them by year.
-Returns a dictionary with year as keys.
-"""
-def sort_speeches_by_year(speeches):
-    years = list(set([speech.year for speech in speeches]))
-    year_dict = {y:[] for y in years}
-
-    for speech in speeches:
-        year_dict[speech.year].append(speech)
-    return year_dict
-
 
 """
 Takes a list of speeches (Gepadeu objects) and extracts the content tokens for each speech.
@@ -405,7 +359,7 @@ def extract_metadata(speeches):
 
 
 """
-Attention: this is only an approximation when applied to large data as there might be more than one politician with the same last name affiliated with the same party.
+Attention: This is only an approximation when applied to a larger corpus as there might be several politicians with the same last name affiliated with the same party.
 """
 def get_number_of_speakers(speeches):
     speakers = []
@@ -420,40 +374,99 @@ def get_number_of_parties(speeches):
 
 def get_number_of_speechacts(speeches):
     speechacts = 0
-    speechact_dict = extract_speechacts(speeches)  
+    speechact_dict = extract_speechacts(speeches) 
     # count number of speechacts 
     for doc_id in speechact_dict: 
         for label in speechact_dict[doc_id]:
             speechacts += len(speechact_dict[doc_id][label])
     return speechacts
 
-# TODO
+
 def get_number_of_spkatt_triggers(speeches):
-    return
+    triggers = 0
+    memory = {}
+    for speech in speeches:
+        memory[speech.doc_id] = {}
+        spkatt_dict = speech.spkatt
+        # count number of spkatt 
+        for label in spkatt_dict:
+            for item in spkatt_dict[label]:
+                if item['trigger'] not in memory[speech.doc_id]:
+                    triggers += 1
+                    memory[speech.doc_id][item['trigger']] = 0
+                memory[speech.doc_id][item['trigger']] += 1
+    return triggers
 
-# TODO
+
 def get_number_of_spkatt_roles(speeches):
-    return
+    spkatt = 0 
+    for speech in speeches:
+        spkatt_dict = speech.spkatt
+        # count number of spkatt 
+        for label in spkatt_dict:
+            spkatt += len(spkatt_dict[label])
+    return spkatt
 
-# TODO
-def get_number_of_moral_frames(speeches):
-    return
 
-# TODO
-def get_number_of_moral_roles(speeches):
-    return
+def get_number_of_mope_mentions(speeches):
+    mope = 0
+    mope_dict = extract_mope(speeches) 
+    # count number of mope 
+    for doc_id in mope_dict: 
+        for label in mope_dict[doc_id]:
+            mope += len(mope_dict[doc_id][label])
+    return mope
 
-# TODO
-def get_number_of_sitents(speeches):
-    return
 
-# TODO
-def get_number_of_mope_entities(speeches):
-    return
-
-# TODO
 def get_number_of_named_entities(speeches):
-    return
+    ne = 0
+    ne_dict = extract_ner(speeches) 
+    # count number of named entities
+    for doc_id in ne_dict: 
+        for label in ne_dict[doc_id]:
+            ne += len(ne_dict[doc_id][label])
+    return ne
+
+
+def get_number_of_sitents(speeches):
+    sitent = 0
+    sitent_dict = extract_sitent(speeches) 
+    # count number of sitent
+    for doc_id in sitent_dict: 
+        for label in sitent_dict[doc_id]:
+            sitent += len(sitent_dict[doc_id][label])
+    return sitent
+
+
+def get_number_of_abs_ents(speeches):
+    abs_ent = 0
+    abs_ent_dict = extract_abs_ent(speeches) 
+    # count number of sitent
+    for doc_id in abs_ent_dict: 
+        for label in abs_ent_dict[doc_id]:
+            abs_ent += len(abs_ent_dict[doc_id][label])
+    return abs_ent
+
+
+def get_number_of_moral_frames(speeches):
+    frames = 0
+    frame_dict = extract_moral_frames(speeches) 
+    # count number of moral frames 
+    for doc_id in frame_dict: 
+        for label in frame_dict[doc_id]:
+            frames += len(frame_dict[doc_id][label])
+    return frames
+
+
+def get_number_of_narrative_roles(speeches):
+    roles = 0
+    frame_dict = extract_narrative_roles(speeches) 
+    # count number of moral frames 
+    for doc_id in frame_dict: 
+        for role in frame_dict[doc_id]:
+            roles += len(frame_dict[doc_id][role])
+    return roles
+
 
 def get_speech_by_docid(speeches, doc_id):
     for speech in speeches:
@@ -486,18 +499,12 @@ def get_speeches_per_term(speeches):
 
 
 """
-Takes a dictionary with annotations for a keyword and prints the number of annotations for layer 'layer' for each party and label on this annotation layer.
-annot_dict format:
-{
-    '19040_Zusatzpunkt_9_AfD_Herrmann_ID194007600_15.06.2018': {}, 
-    '19150_Tagesordnungspunkt_23_GRUENE_Doerner_ID1915000800_06.03.2020': 
-        {'SPEECHACT': {'Self-representation': 1}, 'MORAL': {'Equality': 1}},
-    ...
-}
+Takes a dictionary with annotations for a given keyword and prints the number of 
+annotations for each party and label for the specified layer.
 """
 def keyword_per_party(keyword, annot_dict, meta_dict, layer):
     parties = ['AfD', 'CDU_CSU', 'FDP', 'GRUENE', 'LINKE', 'SPD', 'fraktionslos']
-    stats = {party:{} for party in parties}
+    stats = {party:{} for party in parties} 
 
     for doc_id, annots in annot_dict.items():
         party = meta_dict[doc_id]['party']
@@ -516,41 +523,45 @@ def keyword_per_party(keyword, annot_dict, meta_dict, layer):
 
 
 """
-Takes a list of speeches (Gepadeu objects) and extracts some corpus statistics:
-- no. speeches
-- no. speakers
-- no. parties
-- no. speeches per party
-- no. speeches per year
-- no. speeches per term
-- no. speechacts per party
-- no. moral frames (by MF) per party
-- no. sitent per party # TODO
-- no. spkatt roles per party # TODO
-
+Takes a list of speeches (Gepadeu objects) and extracts some corpus statistics.
 
 Returns a dictionary with doc_ids as keys and the metadata for each key.
 """
 def extract_stats(speeches):
     parties = ['AfD', 'CDU_CSU', 'FDP', 'GRUENE', 'LINKE', 'SPD', 'fraktionslos']
     meta_dict = extract_metadata(speeches)
-
+    
     stats_dict = {
+        # corpus sizes
         'speeches': len(speeches),
         'speakers': get_number_of_speakers(speeches),
         'parties': get_number_of_parties(speeches),
-        'speechacts': get_number_of_speechacts(speeches),
-        'spkatt_trigger': get_number_of_spkatt_roles(speeches),
-        'spkatt_roles': get_number_of_spkatt_roles(speeches),
-        'moral': get_number_of_moral_frames(speeches), 
+
+        # numbers per party/year/term
         'speeches_per_party': get_speeches_per_party(speeches, parties),
         'speeches_per_year': get_speeches_per_year(speeches),
         'speeches_per_term': get_speeches_per_term(speeches),
-        #'sitent_per_party':  get_sitent_per_party(speeches, parties, meta_dict), 
-        'speechacts_per_party': get_speechacts_per_party(speeches, parties, meta_dict),  
+
+        # no. of instances per annotation layer
+        'mope': get_number_of_mope_mentions(speeches), 
+        'moral': get_number_of_moral_frames(speeches), 
+        'narrative': get_number_of_narrative_roles(speeches), 
+        'ner': get_number_of_named_entities(speeches),
+        'sitent': get_number_of_sitents(speeches),
+        'abs_ent': get_number_of_abs_ents(speeches),
+        'speechact': get_number_of_speechacts(speeches),
+        'spkatt_trigger': get_number_of_spkatt_triggers(speeches),
+        'spkatt_roles': get_number_of_spkatt_roles(speeches),
+
+        # no. of instances per party, for different label categories
         'mope_mentions_per_party': get_mope_per_party(speeches, parties, meta_dict),  
         'moral_frames_per_party': get_moral_frames_per_party(speeches, parties, meta_dict),
-        'spkatt_roles_per_party': get_spkatt_roles_per_party(speeches, parties, meta_dict)
+        'mf_per_party': get_mf_per_party(speeches, parties, meta_dict),
+        'ner_per_party': get_ner_per_party(speeches, parties, meta_dict),  
+        'speechacts_per_party': get_speechacts_per_party(speeches, parties, meta_dict),  
+        'spkatt_roles_per_party': get_spkatt_roles_per_party(speeches, parties, meta_dict),
+        'sitent_per_party': get_sitent_per_party(speeches, parties, meta_dict),
+        'abs_ent_per_party': get_abs_ent_per_party(speeches, parties, meta_dict),
     } 
     return stats_dict
 
@@ -565,14 +576,20 @@ def extract_speechacts(speeches):
     for speech in speeches:
         speechact_dict[speech.doc_id] = {speechact:[] for speechact in speechacts} 
 
-        for speechact_id, speechact in speech.speechact.items():
-            for label in speechact['labels']:
-                tmp = {
-                    'start': speechact['start'],
-                    'end': speechact['end'],
-                    'words': speech.words[speechact['start']:speechact['end']+1] 
-                }
-                speechact_dict[speech.doc_id][label].append(tmp)
+        for i in range(len(speech.speechact)): 
+            if speech.speechact[i].startswith('B-'):
+                start = i
+                elms = speech.speechact[i].replace('B-', '').split(',')
+                for label in elms:
+                    for j in range(i+1, len(speech.speechact)):
+                        if not speech.speechact[j].startswith('I-'):
+                            tmp = {
+                                'start': start,
+                                'end': j-1,
+                                'words': speech.words[start:j] 
+                            }
+                            speechact_dict[speech.doc_id][label].append(tmp)
+                            break
     return speechact_dict
 
 
@@ -582,23 +599,37 @@ def extract_sitent(speeches):
     sitent_dict = {}
     for speech in speeches:
         sitent_dict[speech.doc_id] = {sitent:[] for sitent in sitents} 
-        print(speech.sitent)
-        for sitent_id, sitent in speech.sitent.items():
-            print(speech.doc_id)
-            print(sitent)
-            labels = [sitent['label_A1'], sitent['label_A2']]
-            print(labels)
-            print(len(speech.words))
-            print(sitent['token_id'])
+
+        for i in range(len(speech.sitent)): 
+            labels = speech.sitent[i].split(',')
             for label in labels:
-                tmp = {
-                    'id': sitent['token_id'],
-                    'words': speech.words[sitent['token_id']] 
-                }
-                sitent_dict[speech.doc_id][label].append(tmp)
+                if label != "_":
+                    tmp = {
+                        'id': i, 
+                        'words': speech.words[i] 
+                    }
+                    sitent_dict[speech.doc_id][label].append(tmp)
 
     return sitent_dict
 
+
+def extract_abs_ent(speeches):
+    abs_ents = get_abs_ent_labels()
+    abs_ent_dict = {}
+    for speech in speeches:
+        abs_ent_dict[speech.doc_id] = {abs_ent:[] for abs_ent in abs_ents} 
+
+        for i in range(len(speech.abs_ent)): 
+            labels = speech.abs_ent[i].split(',')
+            for label in labels:
+                if label != "_":
+                    tmp = {
+                        'id': i, 
+                        'words': speech.words[i] 
+                    }
+                    abs_ent_dict[speech.doc_id][label].append(tmp)
+
+    return abs_ent_dict
 
 
 
@@ -607,13 +638,25 @@ def get_sitent_per_party(speeches, parties, meta_dict):
     # get list of situation entities
     sitent = list(set([l for docid in sitent_dict for l in sitent_dict[docid]]))
     stats_dict = {party:{label:0 for label in sitent} for party in parties}
-    # count number of speechacts per party
+    # count number of sitents per party
     for doc_id in sitent_dict: 
         for label in sitent_dict[doc_id]:
             stats_dict[meta_dict[doc_id]['party']][label] += len(sitent_dict[doc_id][label])
+
     return stats_dict
 
 
+def get_abs_ent_per_party(speeches, parties, meta_dict):
+    abs_ent_dict = extract_abs_ent(speeches)
+    # get list of situation entities
+    abs_ent = list(set([l for docid in abs_ent_dict for l in abs_ent_dict[docid]]))
+    stats_dict = {party:{label:0 for label in abs_ent} for party in parties}
+    # count number of abstract objects per party
+    for doc_id in abs_ent_dict: 
+        for label in abs_ent_dict[doc_id]:
+            stats_dict[meta_dict[doc_id]['party']][label] += len(abs_ent_dict[doc_id][label])
+
+    return stats_dict
 
 
 def get_speechacts_per_party(speeches, parties, meta_dict):
@@ -625,30 +668,57 @@ def get_speechacts_per_party(speeches, parties, meta_dict):
     for doc_id in speechact_dict: 
         for label in speechact_dict[doc_id]:
             stats_dict[meta_dict[doc_id]['party']][label] += len(speechact_dict[doc_id][label])
+
+    return stats_dict
+
+
+def get_mope_per_party(speeches, parties, meta_dict):
+    mope_dict = extract_mope(speeches)
+    # get list of mope categories
+    mope = list(set([l for docid in mope_dict for l in mope_dict[docid]]))
+    stats_dict = {party:{label:0 for label in mope} for party in parties}
+    # count number of group mentions per party
+    for doc_id in mope_dict: 
+        for label in mope_dict[doc_id]:
+            stats_dict[meta_dict[doc_id]['party']][label] += len(mope_dict[doc_id][label])
+
     return stats_dict
 
 
 
+def get_ner_per_party(speeches, parties, meta_dict):
+    ner_dict = extract_ner(speeches)
+    # get list of NER tags
+    ner = list(set([l for docid in ner_dict for l in ner_dict[docid]]))
+    stats_dict = {party:{label:0 for label in ner} for party in parties}
+    # count number of NER tags per party
+    for doc_id in ner_dict: 
+        for label in ner_dict[doc_id]:
+            stats_dict[meta_dict[doc_id]['party']][label] += len(ner_dict[doc_id][label])
 
-def get_mope_per_party(speeches, parties, meta_dict):
-    mope_dict = extract_mope(speeches) 
-    # get list of mope 
-    mope = list(set([l for docid in mope_dict for l in mope_dict[docid]]))
-    stats_dict = {party:{label:0 for label in mope} for party in parties}
-    # count number of speechacts per party
-    for doc_id in mope_dict: 
-        for label in mope_dict[doc_id]:
-            stats_dict[meta_dict[doc_id]['party']][label] += len(mope_dict[doc_id][label])
     return stats_dict
 
 
 
 def get_moral_frames_per_party(speeches, parties, meta_dict):
     moral_dict = extract_moral_frames(speeches)
+    # get list of moral frame types
+    frames = list(set([mtype for docid in moral_dict for mtype in moral_dict[docid]])) 
+    stats_dict = {party:{ft:0 for ft in frames} for party in parties}
+    # count number of moral frames per party 
+    for doc_id in moral_dict: 
+        for ft in moral_dict[doc_id]:
+            stats_dict[meta_dict[doc_id]['party']][ft] += len(moral_dict[doc_id][ft])
+
+    return stats_dict
+
+
+def get_mf_per_party(speeches, parties, meta_dict):
+    moral_dict = extract_mf(speeches)
     # get list of moral foundations
     mfs = list(set([mf for docid in moral_dict for mf in moral_dict[docid]])) 
-    stats_dict = {party:{mf:0 for mf in mfs} for party in parties} 
-    # count number of moral frames per party, for each moral foundation
+    stats_dict = {party:{mf:0 for mf in mfs} for party in parties}
+    # count number of moral foundations per party 
     for doc_id in moral_dict: 
         for mf in moral_dict[doc_id]:
             stats_dict[meta_dict[doc_id]['party']][mf] += len(moral_dict[doc_id][mf])
@@ -658,13 +728,11 @@ def get_moral_frames_per_party(speeches, parties, meta_dict):
 
 
 def get_spkatt_roles_per_party(speeches, parties, meta_dict):
-    spkatt_dict = extract_spkatt(speeches) 
-
+    spkatt_dict = extract_spkatt(speeches)
     # get list of spkatt roles
     roles = list(set([role for docid in spkatt_dict for role in spkatt_dict[docid]])) 
-
-    stats_dict = {party:{role:0 for role in roles} for party in parties} 
-    # count number of moral frames per party, for each moral foundation
+    stats_dict = {party:{role:0 for role in roles} for party in parties}
+    # count number of spkatt annotations for each role
     for doc_id in spkatt_dict: 
         for role in spkatt_dict[doc_id]:
             stats_dict[meta_dict[doc_id]['party']][role] += len(spkatt_dict[doc_id][role])
@@ -677,7 +745,6 @@ def get_spkatt_roles_per_party(speeches, parties, meta_dict):
 """
 Takes a list of speeches (Gepadeu objects) and extracts all named entities (NE).
 Returns a dictionary with doc_ids as keys, with NE types for each doc.
-TODO: needs to be tested!
 """
 def extract_ner(speeches):
     ner_tags = ['AGE', 'ART', 'CARDINAL', 'DATE', 'DUR', 'EVT', 'FAC', 'FRAC', 'FREQ', 'GPE', 'LAN', 'LAW', 'LOC', 'MED', 'MISC', 'MON', 'NRP', 'ORDINAL', 'ORG', 'PER', 'PERC', 'PRODUCT', 'PROJ', 'QUANT', 'RATE', 'SCORE', 'SORD', 'TIME', 'TITLE', 'URL']
@@ -686,38 +753,81 @@ def extract_ner(speeches):
     for speech in speeches:
         ner_dict[speech.doc_id] = {}
         for i in range(len(speech.ner)):
-            if speech.ner[i] in ner_tags:
+            this_tag = speech.ner[i].replace('B-', '').replace('I-', '')
+            if this_tag in ner_tags:
                 this_annot = {'start':0, 'end':0}
-                if i > 0 and speech.ner[i-1] != speech.ner[i]:
-                    this_annot['start'] = i
-                for j in range(i+1, len(speech.ner)): 
-                     
-                    if speech.ner[j] != speech.ner[j-i]:
-                        this_annot['end'] = j-1
-                        this_annot['words'] = speech.words[i:j-1]
-                        ner_dict[speech.doc_id][speech.ner[i]] = this_annot
+                if i > 0:
+                    prev_tag = speech.ner[i-1].replace('B-', '').replace('I-', '')
+                    if prev_tag != this_tag:
+                        this_annot['start'] = i
+                        for j in range(i+1, len(speech.ner)): 
+                            if speech.ner[j-i].endswith(this_tag):
+                                this_annot['end'] = j-1
+                                this_annot['words'] = speech.words[i:j-1]
+                                ner_dict[speech.doc_id][this_tag] = this_annot
 
     return ner_dict
+
+
+"""                
+Takes a list of speeches (Gepadeu objects) and extracts all moral frames.
+Returns a dictionary with doc_ids as keys, sorted by the frame type of the moral frame.
+"""
+def extract_moral_frames(speeches):
+    frame_types = get_moral_frame_labels()
+    moral_dict = {}
+    for speech in speeches:
+        moral_dict[speech.doc_id] = {mtype:[] for mtype in frame_types} 
+        for mdic in speech.moral:
+            frame_type = mdic['frame_type']
+            frame_span = mdic['frame_ids']
+            words = speech.words[frame_span[0]:frame_span[-1]+1]
+            moral_dict[speech.doc_id][frame_type].append({'start': frame_span[0], 'end': frame_span[-1]+1, 'words': words})
+    return moral_dict
+
 
 
 """
 Takes a list of speeches (Gepadeu objects) and extracts all moral frames.
 Returns a dictionary with doc_ids as keys, sorted by the mf of the moral frame.
 """
-def extract_moral_frames(speeches):
+def extract_mf(speeches):
     mfs = get_mf_labels()
     moral_dict = {}
     for speech in speeches:
-        moral_dict[speech.doc_id] = {mf:[] for mf in mfs}  
+        moral_dict[speech.doc_id] = {mf:[] for mf in mfs} 
         for mdic in speech.moral:
-            frame_type = mdic['predicate']
-            mf_vote = mdic['MF_majority']
-            frame_span = mdic['Frame'] 
-            words = speech.words[frame_span[0]-1:frame_span[-1]]
+            mf_vote = []
+            frame_type = mdic['frame_type']
+            if frame_type != 'PoliticalActOrGoal':
+                mf_vote = mdic['MF_majority']
+            frame_span = mdic['frame_ids']
+            words = speech.words[frame_span[0]:frame_span[-1]+1]
             for mf in mf_vote:
-                moral_dict[speech.doc_id][mf].append({'start': frame_span[0]-1, 'end': frame_span[-1], 'words': words}) 
-        
+                if mf not in mfs: # Skip annotations that have been identified as PoliticalActOrGoal during manual validation.
+                    continue 
+                moral_dict[speech.doc_id][mf].append({'start': frame_span[0], 'end': frame_span[-1]+1, 'words': words})
     return moral_dict
+
+
+"""
+Takes a list of speeches (Gepadeu objects) and extracts all narrative roles for the moral frames.
+Returns a dictionary with doc_ids as keys, sorted by narrative roles.
+"""
+def extract_narrative_roles(speeches):
+    roles = get_narrative_role_labels()
+    role_dict = {}
+    for speech in speeches:
+        role_dict[speech.doc_id] = {role:[] for role in roles} 
+        for mdic in speech.moral:
+            for role in roles:
+                if role in mdic:
+                    role_span = mdic[role]
+                    words = speech.words[role_span[0]-1:role_span[-1]]
+                    role_dict[speech.doc_id][role].append({'start': role_span[0]-1, 'end': role_span[-1], 'words': words})
+
+    return role_dict
+
 
 """
 Takes a list of speeches (Gepadeu objects) and extracts all mentions to
@@ -728,12 +838,13 @@ def extract_mope(speeches):
     mope_tags = get_mope_labels()
     mope_mapping = get_mope_mapping()
     mope_dict = {}
-    for speech in speeches:  
+    for speech in speeches: 
         mope_dict[speech.doc_id] = {mope_tag:[] for mope_tag in mope_tags} 
         for i in range(len(speech.mope)):
-            if speech.mope[i] == 'O':
+            if speech.mope[i] == 'O' or speech.mope[i] == '_':
                 continue
             tag = speech.mope[i].replace('B-', '').replace('I-', '')
+            
             if mope_mapping[tag] in mope_tags:
                 this_annot = {'start':0, 'end':0}
                 if speech.mope[i].startswith('B-'):
@@ -742,75 +853,53 @@ def extract_mope(speeches):
                         if speech.mope[j] != 'I-' + tag:
                             this_annot['end'] = j-1
                             this_annot['words'] = speech.words[i:j]
-                            mope_dict[speech.doc_id][mope_mapping   [tag]].append(this_annot) 
+                            mope_dict[speech.doc_id][mope_mapping   [tag]].append(this_annot)
                             break
-
     return mope_dict
-
-
 
 
 """
 Takes a list of speeches (Gepadeu objects) and extracts all speaker attribution roles (Source, Addressee, Message, Topic, Medium, Evidence).
 Returns a dictionary with doc_ids as keys and the annotations for each role of the speech/thought/writing trigger.
+
+Spk Att Dict {
+   "19124_Tagesordnungspunkt_3_CDU_CSU_Winkelmeier-Becker_ID1912400900_07.11.2019": {
+      "Addressee": [],
+      "Source": [
+         {
+            "start": 5,
+            "end": 5,
+            "words": [
+               "wir"
+            ]
+         },...,
+         {
+            "start": 8,
+            "end": 10,
+            "words": [
+               "des",
+               "Kollegen",
+               "Seitz"
+            ]
+         },
+
 """
 def extract_spkatt(speeches):
-    debug = False
-    triggers = ['B-V', 'I-V', 'B-PTC', 'I-PTC']
-    spkatt_roles = get_spkatt_role_labels()
     spkatt_dict = {}
-    unit_dict   = {}
     for speech in speeches:
-        spkatt_dict[speech.doc_id] = {r:[] for r in spkatt_roles}  
-        unit_dict[speech.doc_id]   = {}
-        if debug: print("SPKATT", speech.spkatt)
-        if debug: print("SPKATT units", speech.spkatt_units)
-
-        # get spkatt units
-        for udx, spkatt_unit in speech.spkatt_units.items():
-            unit_dict[speech.doc_id][udx] = {
-                'start': spkatt_unit['start'],
-                'end': spkatt_unit['end'],
-                'span': speech.words[spkatt_unit['start']:spkatt_unit['end']+1]
-            }
-        if debug: print("UNITS", unit_dict)
-
-        for idx, spkatt in speech.spkatt.items():
-            unit = unit_dict[speech.doc_id][idx]['span']
-            if debug: print("\nUNIT", unit)
-            if debug: print("\nROLES", spkatt["roles"])
-            for i in range(len(spkatt["roles"])):
-                if spkatt["roles"][i] == '_': continue
-                if debug: print("=>", i, spkatt["roles"][i], unit[i])
-                prefix, role = spkatt["roles"][i].split('-')
-                if role in spkatt_roles: 
-                    if prefix == 'B':
-                        this_annot = {'start': i, 'end': 0}
-                        # last token of role
-                        if not spkatt["roles"][i+1].endswith(role):
-                            this_annot['end'] = i
-                            if debug: print("a start", this_annot['start'], 'end', this_annot['end'])
-                            this_annot['words'] = unit[this_annot['start']:this_annot['end']+1]
-                            spkatt_dict[speech.doc_id][role].append(this_annot)
-                    elif prefix == 'I':
-                        if i+1 == len(spkatt["roles"]):
-                            break
-                        if not spkatt["roles"][i+1].endswith(role):
-                            this_annot['end'] = i
-                            if debug: print("b start", this_annot['start'], 'end', this_annot['end'])
-                            this_annot['words'] = unit[this_annot['start']:this_annot['end']+1]
-                            spkatt_dict[speech.doc_id][role].append(this_annot)
+        spkatt_dict[speech.doc_id] = speech.spkatt
 
     return spkatt_dict
 
+
+
 """
-Takes a token string and returns all token ids for this token
-as a list.
+Takes a list of speeches (Gepadeu objects) and a token string (keyword) and returns all token ids for this token as a list.
 """
 def search_for(speeches, keyword):
     token_ids = {}; num_instances = 0
     for speech in speeches:
-        #TODO: nur token match erlauben, keine subtokens!!!
+        # We only consider token matches, no subtokens!
         for idx in range(len(speech.words)):
             if keyword == speech.words[idx]:
                 num_instances += 1
@@ -819,19 +908,16 @@ def search_for(speeches, keyword):
 
 
 """
-Extract speechact spans for a list of token ids
-and return the spans as a list.
+Extract speechact spans for a list of token ids and return the spans as a list.
 """
 def extract_speechact_spans(doc_id, tok_id, speech):
     span_dict = {}
-    # extract the annot_dict for speechacts
+    # Extract the annot_dict for speechacts
     annot_dict = extract_speechacts([speech]) 
-    for idx in annot_dict[doc_id]:
-        if annot_dict[doc_id][idx] == []:
-            continue
-        for item in annot_dict[doc_id][idx]: 
+    for label in annot_dict[doc_id]: 
+        for item in annot_dict[doc_id][label]: 
             if tok_id >= item['start'] and tok_id <= item['end']:
-                span_dict[idx] = item
+                span_dict[label] = item
     return span_dict
 
 
@@ -841,32 +927,50 @@ and return the spans as a list.
 """
 def extract_moral_frame_spans(doc_id, tok_id, speech):
     span_dict = {}
-    # extract the annot_dict for moral frames
+    # Extract the annot_dict for moral frames
     annot_dict = extract_moral_frames([speech]) 
-    for idx in annot_dict[doc_id]:
-        if annot_dict[doc_id][idx] == []:
+    for mframe in annot_dict[doc_id]:
+        if annot_dict[doc_id][mframe] == []:
             continue
-        for item in annot_dict[doc_id][idx]:   
+        for item in annot_dict[doc_id][mframe]:   
             if tok_id >= item['start'] and tok_id <= item['end']+1:                 
-                span_dict[idx] = item
+                span_dict[mframe] = item
     return span_dict
 
 
+"""
+Extract Moral Foundation frame spans for a list of token ids
+and return the spans as a list.
+"""
+def extract_mf_frame_spans(doc_id, tok_id, speech):
+    span_dict = {}
+    # Extract the annot_dict for moral frames
+    annot_dict = extract_mf([speech]) 
+    for mf in annot_dict[doc_id]:
+        if annot_dict[doc_id][mf] == []:
+            continue
+        for item in annot_dict[doc_id][mf]:   
+            if tok_id >= item['start'] and tok_id <= item['end']:                 
+                span_dict[mf] = item
+    return span_dict
 
 
 """
-
+Extract spans for different annotation layers.
+ToDo: expand for other layers (spkatt, mope, NER, sitent)
 """
 def get_spans(doc_id, tok_ids, speech, layers):
     span_dict = {doc_id:{'text':speech.words, 'annot': {idx:{} for idx in tok_ids}}}
 
     for layer in layers:
         for tok_id in tok_ids:
-            if layer == 'SPEECHACT':
+            if layer == 'speechact':
                 span_dict[doc_id]['annot'][tok_id][layer] = extract_speechact_spans(doc_id, tok_id, speech)
-            elif layer == 'MORAL':
+            elif layer == 'moral':
                 span_dict[doc_id]['annot'][tok_id][layer] = extract_moral_frame_spans(doc_id, tok_id, speech)
-  
+            elif layer == 'mf':
+                span_dict[doc_id]['annot'][tok_id][layer] = extract_mf_frame_spans(doc_id, tok_id, speech)
+
     return span_dict
 
 
@@ -879,12 +983,13 @@ c) a list of annonation layers.
 Extracts the annotation specified in layers for each token id
 and returns them as a dictionary.
 """
-def get_annotations_by_id(word_ids, speeches, layers):
+def get_annotations_by_id(keyword_ids, speeches, layers):
     annots = {}
-    for doc_id, tok_ids in word_ids.items():
-        # get the speech for this doc_id
+    for doc_id, tok_ids in keyword_ids.items():
+        if tok_ids == []: continue
+        # Get the speech for this doc_id
         speech = get_speech_by_docid(speeches, doc_id)
-        # extract annotations and spans for the token ids for each layer
+        # Extract annotations and spans for the token ids for each layer
         span_dict = get_spans(doc_id, tok_ids, speech, layers)
         annots[doc_id] = span_dict[doc_id]
     return annots
